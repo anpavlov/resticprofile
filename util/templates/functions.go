@@ -18,6 +18,7 @@ import (
 	"sync"
 	"text/template"
 
+	"github.com/Masterminds/sprig/v3"
 	"github.com/creativeprojects/resticprofile/util"
 	"github.com/creativeprojects/resticprofile/util/collect"
 )
@@ -84,6 +85,7 @@ func TemplateFuncs(funcs ...map[string]any) (templateFuncs map[string]any) {
 func New(name string, funcs ...map[string]any) (tpl *template.Template) {
 	tpl = template.New(name)
 	tpl.Funcs(TemplateFuncs(funcs...))
+	tpl.Funcs(sprig.FuncMap())
 	return
 }
 
