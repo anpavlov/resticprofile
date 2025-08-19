@@ -84,8 +84,8 @@ func TemplateFuncs(funcs ...map[string]any) (templateFuncs map[string]any) {
 // New returns a new Template instance with configured funcs (including TemplateFuncs)
 func New(name string, funcs ...map[string]any) (tpl *template.Template) {
 	tpl = template.New(name)
-	tpl.Funcs(TemplateFuncs(funcs...))
 	tpl.Funcs(sprig.FuncMap())
+	tpl.Funcs(TemplateFuncs(funcs...))
 	return
 }
 
