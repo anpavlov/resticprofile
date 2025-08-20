@@ -6,6 +6,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/creativeprojects/resticprofile/constants"
 	"github.com/creativeprojects/resticprofile/monitor"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
@@ -16,17 +17,24 @@ const (
 	namespace      = "resticprofile"
 	backup         = "backup"
 	groupLabel     = "group"
+	commandLabel   = "command"
 	profileLabel   = "profile"
 	goVersionLabel = "goversion"
 	versionLabel   = "version"
 )
 
 type Metrics struct {
-	labels     prometheus.Labels
-	registry   *prometheus.Registry
+	labels   prometheus.Labels
+	registry *prometheus.Registry
+
 	info       *prometheus.GaugeVec
 	resticInfo *prometheus.GaugeVec
-	backup     BackupMetrics
+
+	commandStatus   *prometheus.GaugeVec
+	commandDuration *prometheus.GaugeVec
+	commandTime     *prometheus.GaugeVec
+
+	backup BackupMetrics
 }
 
 func NewMetrics(profile, group, version string, resticversion string, configLabels map[string]string) *Metrics {
@@ -60,10 +68,30 @@ func NewMetrics(profile, group, version string, resticversion string, configLabe
 
 	p.backup = newBackupMetrics(keys)
 
+	p.commandDuration = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: "command",
+		Name:      "duration_seconds",
+		Help:      "Command execute duration (in seconds).",
+	}, append(keys, commandLabel))
+
+	p.commandStatus = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: "command",
+		Name:      "status",
+		Help:      "Command execute status: 0=fail, 1=warning, 2=success.",
+	}, append(keys, commandLabel))
+
+	p.commandTime = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Subsystem: "command",
+		Name:      "time_seconds",
+		Help:      "Last command run timestamp (unixtime).",
+	}, append(keys, commandLabel))
+
 	registry.MustRegister(
 		p.info,
 		p.resticInfo,
-		p.backup.duration,
 		p.backup.filesNew,
 		p.backup.filesChanged,
 		p.backup.filesUnmodified,
@@ -74,15 +102,24 @@ func NewMetrics(profile, group, version string, resticversion string, configLabe
 		p.backup.bytesAdded,
 		p.backup.bytesAddedPacked,
 		p.backup.bytesTotal,
-		p.backup.status,
-		p.backup.time,
+		p.commandDuration,
+		p.commandStatus,
+		p.commandTime,
 	)
 	return p
 }
 
-func (p *Metrics) BackupResults(status Status, summary monitor.Summary) {
-	p.backup.duration.With(p.labels).Set(summary.Duration.Seconds())
+func (p *Metrics) Results(command string, status Status, summary monitor.Summary) {
+	p.commandDuration.MustCurryWith(prometheus.Labels{commandLabel: command}).With(p.labels).Set(summary.Duration.Seconds())
+	p.commandStatus.MustCurryWith(prometheus.Labels{commandLabel: command}).With(p.labels).Set(float64(status))
+	p.commandTime.MustCurryWith(prometheus.Labels{commandLabel: command}).With(p.labels).Set(float64(time.Now().Unix()))
 
+	if command == constants.CommandBackup {
+		p.backupResults(summary)
+	}
+}
+
+func (p *Metrics) backupResults(summary monitor.Summary) {
 	p.backup.filesNew.With(p.labels).Set(float64(summary.FilesNew))
 	p.backup.filesChanged.With(p.labels).Set(float64(summary.FilesChanged))
 	p.backup.filesUnmodified.With(p.labels).Set(float64(summary.FilesUnmodified))
@@ -95,8 +132,6 @@ func (p *Metrics) BackupResults(status Status, summary monitor.Summary) {
 	p.backup.bytesAdded.With(p.labels).Set(float64(summary.BytesAdded))
 	p.backup.bytesAddedPacked.With(p.labels).Set(float64(summary.BytesAddedPacked))
 	p.backup.bytesTotal.With(p.labels).Set(float64(summary.BytesTotal))
-	p.backup.status.With(p.labels).Set(float64(status))
-	p.backup.time.With(p.labels).Set(float64(time.Now().Unix()))
 }
 
 func (p *Metrics) SaveTo(filename string) error {

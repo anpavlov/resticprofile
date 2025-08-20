@@ -13,7 +13,7 @@ const (
 )
 
 type BackupMetrics struct {
-	duration         *prometheus.GaugeVec
+	// duration         *prometheus.GaugeVec
 	filesNew         *prometheus.GaugeVec
 	filesChanged     *prometheus.GaugeVec
 	filesUnmodified  *prometheus.GaugeVec
@@ -24,18 +24,12 @@ type BackupMetrics struct {
 	bytesAdded       *prometheus.GaugeVec
 	bytesAddedPacked *prometheus.GaugeVec
 	bytesTotal       *prometheus.GaugeVec
-	status           *prometheus.GaugeVec
-	time             *prometheus.GaugeVec
+	// status           *prometheus.GaugeVec
+	// time             *prometheus.GaugeVec
 }
 
 func newBackupMetrics(labels []string) BackupMetrics {
 	backupMetrics := BackupMetrics{
-		duration: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: backup,
-			Name:      "duration_seconds",
-			Help:      "The backup duration (in seconds).",
-		}, labels),
 		filesNew: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: backup,
@@ -95,18 +89,6 @@ func newBackupMetrics(labels []string) BackupMetrics {
 			Subsystem: backup,
 			Name:      "processed_bytes",
 			Help:      "Total number of bytes scanned for changes.",
-		}, labels),
-		status: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: backup,
-			Name:      "status",
-			Help:      "Backup status: 0=fail, 1=warning, 2=success.",
-		}, labels),
-		time: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: backup,
-			Name:      "time_seconds",
-			Help:      "Last backup run (unixtime).",
 		}, labels),
 	}
 	return backupMetrics

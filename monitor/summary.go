@@ -16,6 +16,8 @@ type Summary struct {
 	BytesAddedPacked uint64
 	BytesTotal       uint64
 	OutputAnalysis   OutputAnalysis
+
+	CheckReadData bool
 }
 
 // OutputAnalysis of the profile run

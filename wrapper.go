@@ -235,6 +235,9 @@ func (r *resticWrapper) runProfile() error {
 					// Wrap command action in "run-before" & "run-after" from section
 					runner = r.runnerWithBeforeAndAfter(shellCommands, r.command, runner)
 
+					// TODO: if you want to wrap check and retention commands around before-after backup scripts
+					// make it here
+
 					// Execute command sequence
 					err = runner()
 				}
@@ -488,7 +491,11 @@ func (r *resticWrapper) runCheck() error {
 		rCommand := r.prepareCommand(constants.CommandCheck, args, false)
 		summary, stderr, err := runShellCommand(rCommand)
 		r.executionTime += summary.Duration
-		r.summary(constants.CommandCheck, summary, stderr, err)
+		summaryCommand := constants.CommandCheck
+		if _, ok := args.Get("read-data"); ok {
+			summaryCommand += "-full"
+		}
+		r.summary(summaryCommand, summary, stderr, err)
 		if err != nil {
 			retry, interruptedError := r.canRetryAfterError(constants.CommandCheck, summary)
 			if retry {
@@ -568,7 +575,14 @@ func (r *resticWrapper) runCommand(command string) error {
 
 		summary, stderr, err := runShellCommand(rCommand)
 		r.executionTime += summary.Duration
-		r.summary(r.command, summary, stderr, err)
+
+		summaryCommand := r.command
+
+		if _, ok := args.Get("read-data"); r.command == constants.CommandCheck && ok {
+			summaryCommand += "-full"
+		}
+
+		r.summary(summaryCommand, summary, stderr, err)
 
 		if err != nil && !r.canSucceedAfterError(command, err) {
 			retry, interruptedError := r.canRetryAfterError(command, summary)
